@@ -26,44 +26,67 @@ class NerdLauncherActivity : AppCompatActivity() {
         recyclerView.layoutManager = LinearLayoutManager(this)
 
         setupAdapter()
-
     }
 
     private fun setupAdapter() {
         val startupIntent = Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
         }
-        val activities = packageManager.queryIntentActivities(
-            startupIntent,
-            0
-        ) //val activities = packageManager.queryIntentActivities(startupIntent, PackageManager.MATCH_DEFAULT_ONLY)
+
+        val packageManager = packageManager
+        val activities = packageManager.queryIntentActivities(startupIntent, 0)
         activities.sortWith(Comparator { a, b ->
             String.CASE_INSENSITIVE_ORDER.compare(
-                a.loadLabel(packageManager).toString(),
-                b.loadLabel(packageManager).toString()
+                    a.loadLabel(packageManager).toString(),
+                    b.loadLabel(packageManager).toString()
             )
         })
+
+        Log.i(TAG, "Found ${activities.size} activities")
         recyclerView.adapter = ActivityAdapter(activities)
         Log.i(TAG, "Found ${activities.size}")
     }
 
-    private class ActivityHolder(itemView: View): RecyclerView.ViewHolder(itemView){
+    private class ActivityHolder(itemView: View) :
+            RecyclerView.ViewHolder(itemView),
+            View.OnClickListener {
+
         private val nameTextView = itemView as TextView
         private lateinit var resolveInfo: ResolveInfo
 
-        fun bindActivity(resolveInfo: ResolveInfo){
+        init {
+            nameTextView.setOnClickListener(this)
+        }
+
+        fun bindActivity(resolveInfo: ResolveInfo) {
             this.resolveInfo = resolveInfo
             val packageManager = itemView.context.packageManager
             val appName = resolveInfo.loadLabel(packageManager).toString()
             nameTextView.text = appName
         }
+
+        override fun onClick(view: View) {
+            val activityInfo = resolveInfo.activityInfo
+
+            val intent = Intent(Intent.ACTION_MAIN).apply {
+                setClassName(activityInfo.applicationInfo.packageName,
+                        activityInfo.name)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) //создаёт новую таску
+            }
+
+            val context = view.context
+            context.startActivity(intent)
+        }
     }
 
-    private class ActivityAdapter(val activities: List<ResolveInfo> ): RecyclerView.Adapter<ActivityHolder>() {
+    private class ActivityAdapter(val activities: List<ResolveInfo>) :
+            RecyclerView.Adapter<ActivityHolder>() {
 
-        override fun onCreateViewHolder(container: ViewGroup, viewType: Int): ActivityHolder {
+        override fun onCreateViewHolder(container: ViewGroup, viewType: Int):
+                ActivityHolder {
             val layoutInflater = LayoutInflater.from(container.context)
-            val view = layoutInflater.inflate(android.R.layout.simple_list_item_1, container, false)
+            val view = layoutInflater
+                    .inflate(android.R.layout.simple_list_item_1, container, false)
             return ActivityHolder(view)
         }
 
